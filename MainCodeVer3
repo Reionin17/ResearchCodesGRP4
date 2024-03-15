@@ -1,0 +1,121 @@
+#include <Servo.h>
+
+#define POWER_PIN       7 // LED POWER
+#define SIGNAL_PIN      A5 // SIGNAL FOR WATER SENSOR
+#define LED_PIN_2       2 // LED RED
+#define LED_PIN_3       3 // LED ORANGE
+#define LED_PIN_4       4 // LED GREEN
+
+Servo myServo;  // create servo object to control a servo
+int defaultPosition = 90;  // default starting point
+int currentAngle = defaultPosition;  // variable to store the current angle
+unsigned long delayTime = 200;  // delay time for servo movement
+
+const int THRESHOLD_SUBMERGED = 600;
+const int THRESHOLD_LEVEL2 = 650;
+const int DURATION_SUBMERGED = 5;
+const int DURATION_STABLE1 = 10;
+const int DURATION_STABLE2 = 15;
+
+int rawValue = 0; // raw value of the water sensor itself
+int level = 0;   // storing levels
+int consecutiveReadingsAboveThreshold = 0; // counter for consecutive readings above the threshold
+int consecutiveStableReadings = 0; // counter for consecutive stable readings when the level is 1
+int consecutiveReadingsAboveLevel2Threshold = 0; // counter for consecutive readings above level 2 threshold
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(POWER_PIN, OUTPUT);
+  pinMode(LED_PIN_2, OUTPUT);
+  pinMode(LED_PIN_3, OUTPUT);
+  pinMode(LED_PIN_4, OUTPUT);
+  myServo.attach(9);   // attaches the servo on pin 9
+  myServo.write(defaultPosition);   // set the servo to the neutral or default starting point (90 degrees)
+  currentAngle = defaultPosition;  // initialize the current angle
+  digitalWrite(POWER_PIN, LOW);
+  Serial.println("check the damn sensors boy");
+}
+
+void moveToPosition(int targetAngle) {
+  myServo.write(targetAngle);
+  delay(delayTime);  // Wait for 0.5 seconds to allow the servo to reach the target position
+}
+
+void returnToDefault() {
+  moveToPosition(defaultPosition);
+  currentAngle -= 90;
+  delay(delayTime);  // Wait for 0.5 second
+}
+
+void activateSecondaryCode() {
+  String inputString = "Y";  // You can customize the command as needed [OPTIONAL]
+  inputString.trim();  // remove leading and trailing whitespaces
+
+  if (inputString == "Y") {
+    currentAngle += 90;
+    moveToPosition(currentAngle);
+    Serial.println("Moving motor, I hope this shi works");
+    delay(delayTime);  // Wait for 1 second
+    returnToDefault();  // Return to default position after 2 seconds
+  }
+}
+
+void loop() {
+  digitalWrite(POWER_PIN, HIGH);
+  delay(1);
+  rawValue = analogRead(SIGNAL_PIN);
+  digitalWrite(POWER_PIN, LOW);
+
+  Serial.print("Raw Sensor Value: ");
+  Serial.print(rawValue);
+
+  if (rawValue > THRESHOLD_SUBMERGED) {
+    consecutiveReadingsAboveThreshold++;
+    if (consecutiveReadingsAboveThreshold >= DURATION_SUBMERGED) {
+      level = 1;
+      consecutiveStableReadings++;
+    }
+  } else {
+    consecutiveReadingsAboveThreshold = 0;
+    level = 0;
+    consecutiveStableReadings = 0;
+  }
+
+  if (level == 1 && consecutiveStableReadings >= DURATION_STABLE1) {
+    level = 1;
+  }
+
+  if (rawValue > THRESHOLD_LEVEL2) {
+    consecutiveReadingsAboveLevel2Threshold++;
+    if (consecutiveReadingsAboveLevel2Threshold >= DURATION_STABLE2) {
+      level = 2;
+      activateSecondaryCode();
+      Serial.println("Wtr level reached 2!");
+
+    }
+  } else {
+    consecutiveReadingsAboveLevel2Threshold = 0;
+  }
+
+  Serial.print("\tMapped Water Level: ");
+  Serial.println(level);
+
+  digitalWrite(LED_PIN_2, LOW);
+  digitalWrite(LED_PIN_3, LOW);
+  digitalWrite(LED_PIN_4, LOW);
+
+  if (level == 1) {
+    digitalWrite(LED_PIN_3, HIGH);
+  }
+
+  if (level == 0) {
+    digitalWrite(LED_PIN_4, HIGH);
+  }
+
+  if (level == 2) {
+    digitalWrite(LED_PIN_2, HIGH);
+
+  }
+
+  delay(200);
+}
