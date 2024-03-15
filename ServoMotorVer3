@@ -1,0 +1,86 @@
+#include <Servo.h>
+
+Servo myServo;  // create servo object to control a servo
+int defaultPosition = 90;  // default starting point
+int currentAngle = defaultPosition;  // variable to store the current angle
+unsigned long delayTime = 1000;  // delay time for servo movement
+
+void setup() {
+  Serial.begin(9600);  // initialize serial communication
+  myServo.attach(9);   // attaches the servo on pin 9
+  myServo.write(defaultPosition);   // set the servo to the neutral or default starting point (90 degrees)
+  currentAngle = defaultPosition;  // initialize the current angle
+}
+
+void moveToPosition(int targetAngle) {
+  myServo.write(targetAngle);
+  delay(delayTime);  // Wait for 1 second to allow the servo to reach the target position
+}
+
+void returnToDefault() {
+  moveToPosition(defaultPosition);
+  Serial.println("Returned to default position.");
+  delay(delayTime);  // Wait for 1 second
+}
+
+void loop() {
+  String inputString = Serial.readStringUntil('\n');  // read the incoming string from Serial Monitor
+  inputString.trim();  // remove leading and trailing whitespaces
+
+  if (inputString == "curpos") {
+    // Print current position to Serial Monitor
+    Serial.print("Current position: ");
+    Serial.println(currentAngle);
+  } else if (inputString.startsWith("+")) {
+    // Increment servo angle by specified degrees
+    int degreesToAdd = inputString.substring(1).toInt();  // extract the number following the '+'
+    currentAngle += degreesToAdd;
+    moveToPosition(currentAngle);
+    // Print current position to Serial Monitor
+    Serial.print("Current position: ");
+    Serial.println(currentAngle);
+    returnToDefault();  // Return to default position after reaching the target angle
+  } else if (inputString.startsWith("-")) {
+    // Decrement servo angle by specified degrees
+    int degreesToSubtract = inputString.substring(1).toInt();  // extract the number following the '-'
+    currentAngle -= degreesToSubtract;
+    moveToPosition(currentAngle);
+    // Print current position to Serial Monitor
+    Serial.print("Current position: ");
+    Serial.println(currentAngle);
+    returnToDefault();  // Return to default position after reaching the target angle
+  } else if (inputString == "setpos") {
+    // Set the current position as the new default position
+    defaultPosition = currentAngle;
+    moveToPosition(defaultPosition);
+    // Print current position to Serial Monitor
+    Serial.print("Current position: ");
+    Serial.println(currentAngle);
+  } else if (inputString == "resetpos") {
+    // Reset the angle to the default position
+    currentAngle = defaultPosition;
+    moveToPosition(currentAngle);
+    // Print current position to Serial Monitor
+    Serial.print("Current position: ");
+    Serial.println(currentAngle);
+  } else if (inputString == "savepos") {
+    // Save the current angle as the default position for future use
+    defaultPosition = currentAngle;
+    // Print confirmation to Serial Monitor
+    Serial.println("Current position saved as default.");
+  } else if (inputString == "Y") {
+    // Add 45 degrees and wait for 1 second
+    currentAngle += 45;
+    moveToPosition(currentAngle);
+    Serial.println("Adding 45 degrees. Please wait.");
+    delay(delayTime);  // Wait for 1 second
+    returnToDefault();  // Return to default position after 2 seconds
+  } else if (inputString == "N") {
+    // Subtract 45 degrees and wait for 1 second
+    currentAngle -= 45;
+    moveToPosition(currentAngle);
+    Serial.println("Subtracting 45 degrees. Please wait.");
+    delay(delayTime);  // Wait for 1 second
+    returnToDefault();  // Return to default position after 2 seconds
+  }
+}
